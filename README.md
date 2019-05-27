@@ -5,6 +5,14 @@ Requires:
 
 - Go v1.11+ (vgo / go modules support)
 
+## Build + Test
+
+```
+make install
+
+make test
+```
+
 ## Run
 
 1. first run `go run cmd/repository/main.go` in one terminal to run the black box API
