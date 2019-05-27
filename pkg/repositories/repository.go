@@ -11,8 +11,9 @@ import (
 )
 
 type Service struct {
-	cli    *http.Client
-	target *url.URL
+	cli      *http.Client
+	target   *url.URL
+	attempts int
 }
 
 func New(repositoryServiceAddress string) (*Service, error) {
@@ -22,8 +23,9 @@ func New(repositoryServiceAddress string) (*Service, error) {
 	}
 
 	return &Service{
-		cli:    &http.Client{},
-		target: url,
+		cli:      &http.Client{},
+		target:   url,
+		attempts: 3,
 	}, nil
 }
 
@@ -47,32 +49,39 @@ func (s Service) Repositories(_ context.Context, req models.RepositoriesRequest)
 			defer wg.Done()
 
 			for in := range incoming {
-				func(in *task) {
-					target, err := s.target.Parse("/repository")
+				do := func(in *task) error {
+					target, err := s.target.Parse("/repository?failRatio=0.5")
 					if err != nil {
-						in.Err = err
-
-						return
+						return err
 					}
 
 					resp, err := s.cli.Get(target.String())
 					if err != nil {
-						in.Err = err
-
-						return
+						return err
 					}
 
 					defer resp.Body.Close()
 
 					var repo repo
 					if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
-						in.Err = err
-
-						return
+						return err
 					}
 
 					in.Result = repo.Repository
-				}(&in)
+
+					return nil
+				}
+
+				// retry failures
+				for i := 0; i < s.attempts; i++ {
+					in.Err = nil
+
+					if err := do(&in); err == nil {
+						break
+					}
+
+					in.Err = err
+				}
 
 				collected <- in
 			}

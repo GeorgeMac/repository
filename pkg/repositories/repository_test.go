@@ -23,7 +23,6 @@ var (
 )
 
 func TestRepositories(t *testing.T) {
-
 	for _, testCase := range []struct {
 		Name string
 		// available repos
