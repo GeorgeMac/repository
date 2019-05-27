@@ -29,7 +29,7 @@ func TestRepositories(t *testing.T) {
 		// available repos
 		Repositories []models.Repository
 		// inputs
-		Request RepositoryRequest
+		Request models.RepositoryRequest
 		// expectations
 		ExpectedRepositories []models.Repository
 		ExpectedError        error
@@ -37,19 +37,19 @@ func TestRepositories(t *testing.T) {
 		{
 			Name:                 "fetch one repo",
 			Repositories:         []models.Repository{repoA, repoB},
-			Request:              NewRepositoryRequest(),
+			Request:              models.NewRepositoryRequest(),
 			ExpectedRepositories: []models.Repository{repoA},
 		},
 		{
 			Name:                 "fetch two repos",
 			Repositories:         []models.Repository{repoB, repoC},
-			Request:              NewRepositoryRequest(WithCount(2)),
+			Request:              models.NewRepositoryRequest(models.WithCount(2)),
 			ExpectedRepositories: []models.Repository{repoB, repoC},
 		},
 		{
 			Name:                 "fetch three unique repos",
 			Repositories:         []models.Repository{repoA, repoB, repoB, repoB, repoC},
-			Request:              NewRepositoryRequest(WithCount(3), Unique),
+			Request:              models.NewRepositoryRequest(models.WithCount(3), models.Unique),
 			ExpectedRepositories: []models.Repository{repoA, repoB, repoC},
 		},
 	} {

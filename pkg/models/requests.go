@@ -1,4 +1,4 @@
-package repositories
+package models
 
 type RepositoryRequest struct {
 	Count  int

@@ -27,7 +27,7 @@ func New(repositoryServiceAddress string) (*Service, error) {
 	}, nil
 }
 
-func (s Service) Repositories(_ context.Context, req RepositoryRequest) (repos []models.Repository, err error) {
+func (s Service) Repositories(_ context.Context, req models.RepositoryRequest) (repos []models.Repository, err error) {
 	type task struct {
 		Result models.Repository
 		Err    error
