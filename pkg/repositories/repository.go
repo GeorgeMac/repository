@@ -91,7 +91,7 @@ func (s Service) Repositories(_ context.Context, req models.RepositoriesRequest)
 			return nil, resp.Err
 		}
 
-		if _, ok := seen[resp.Result.ID]; ok {
+		if _, ok := seen[resp.Result.ID]; ok && req.Unique {
 			// try again as this has already been seen
 			incoming <- task{}
 			continue
