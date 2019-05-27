@@ -55,12 +55,19 @@ func (s Service) Repositories(ctxt context.Context, req models.RepositoriesReque
 
 					defer resp.Body.Close()
 
+					if resp.StatusCode != http.StatusOK {
+						// keep trying until 200 achieved
+						continue
+					}
+
 					var repo repo
 					if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
 						continue
 					}
 
 					collected <- repo.Repository
+
+					break
 				}
 			}
 		}()
@@ -76,6 +83,11 @@ func (s Service) Repositories(ctxt context.Context, req models.RepositoriesReque
 	for {
 		select {
 		case <-ctxt.Done():
+			close(incoming)
+
+			for range collected {
+				// waits until collected is closed
+			}
 
 			return repos, ctxt.Err()
 		case resp := <-collected:

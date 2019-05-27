@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/georgemac/repositories/pkg/models"
 )
@@ -43,7 +44,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		models.Unique(&req)
 	}
 
-	resp, err := s.RepositoriesService.Repositories(r.Context(), req)
+	ctxt := r.Context()
+
+	if v := r.URL.Query().Get("timeout"); v != "" {
+		dur, err := time.ParseDuration(v)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// configure timeout on repositories call
+		var cancel context.CancelFunc
+		ctxt, cancel = context.WithTimeout(ctxt, dur)
+		defer cancel()
+	}
+
+	resp, err := s.RepositoriesService.Repositories(ctxt, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

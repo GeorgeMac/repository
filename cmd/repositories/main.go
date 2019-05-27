@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/georgemac/repositories/pkg/cached"
 	"github.com/georgemac/repositories/pkg/repositories"
 	"github.com/georgemac/repositories/pkg/server"
 )
@@ -22,7 +23,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	server := server.New(service)
+
+	server := server.New(cached.New(service))
 
 	http.Handle("/repositories", server)
 
