@@ -11,9 +11,8 @@ import (
 )
 
 type Service struct {
-	cli      *http.Client
-	target   *url.URL
-	attempts int
+	cli    *http.Client
+	target *url.URL
 }
 
 func New(repositoryServiceAddress string) (*Service, error) {
@@ -23,67 +22,46 @@ func New(repositoryServiceAddress string) (*Service, error) {
 	}
 
 	return &Service{
-		cli:      &http.Client{},
-		target:   url,
-		attempts: 3,
+		cli:    &http.Client{},
+		target: url,
 	}, nil
 }
 
-func (s Service) Repositories(_ context.Context, req models.RepositoriesRequest) (repos []models.Repository, err error) {
-	type task struct {
-		Result models.Repository
-		Err    error
-	}
-
+func (s Service) Repositories(ctxt context.Context, req models.RepositoriesRequest) (repos []models.Repository, err error) {
 	var (
-		incoming  = make(chan task, req.Count)
-		collected = make(chan task)
+		incoming  = make(chan struct{}, req.Count)
+		collected = make(chan models.Repository)
 		wg        sync.WaitGroup
 	)
 
 	for i := 0; i < req.Count; i++ {
-		incoming <- task{}
+		incoming <- struct{}{}
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			for in := range incoming {
-				do := func(in *task) error {
+			for range incoming {
+				for {
 					target, err := s.target.Parse("/repository?failRatio=0.5")
 					if err != nil {
-						return err
+						continue
 					}
 
 					resp, err := s.cli.Get(target.String())
 					if err != nil {
-						return err
+						continue
 					}
 
 					defer resp.Body.Close()
 
 					var repo repo
 					if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
-						return err
+						continue
 					}
 
-					in.Result = repo.Repository
-
-					return nil
+					collected <- repo.Repository
 				}
-
-				// retry failures
-				for i := 0; i < s.attempts; i++ {
-					in.Err = nil
-
-					if err := do(&in); err == nil {
-						break
-					}
-
-					in.Err = err
-				}
-
-				collected <- in
 			}
 		}()
 	}
@@ -95,25 +73,27 @@ func (s Service) Repositories(_ context.Context, req models.RepositoriesRequest)
 
 	seen := map[int]struct{}{}
 
-	for resp := range collected {
-		if resp.Err != nil {
-			return nil, resp.Err
-		}
+	for {
+		select {
+		case <-ctxt.Done():
 
-		if _, ok := seen[resp.Result.ID]; ok && req.Unique {
-			// try again as this has already been seen
-			incoming <- task{}
-			continue
-		}
+			return repos, ctxt.Err()
+		case resp := <-collected:
+			if _, ok := seen[resp.ID]; ok && req.Unique {
+				// try again as this has already been seen
+				incoming <- struct{}{}
+				continue
+			}
 
-		// track that we have now see this ID
-		seen[resp.Result.ID] = struct{}{}
+			// track that we have now see this ID
+			seen[resp.ID] = struct{}{}
 
-		repos = append(repos, resp.Result)
+			repos = append(repos, resp)
 
-		if len(repos) == req.Count {
-			close(incoming)
-			return
+			if len(repos) == req.Count {
+				close(incoming)
+				return
+			}
 		}
 	}
 
