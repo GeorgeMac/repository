@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"net/http/httptest"
+	"sort"
 	"testing"
 	"time"
 
@@ -15,51 +16,60 @@ var (
 	today      = time.Now().UTC()
 	yesterday  = today.Add(-time.Hour * 24).UTC()
 	twoDaysAgo = yesterday.Add(-time.Hour * 24).UTC()
+
+	repoA = models.Repository{1, "foo", today}
+	repoB = models.Repository{2, "bar", yesterday}
+	repoC = models.Repository{3, "baz", twoDaysAgo}
 )
 
 func TestRepositories(t *testing.T) {
-	var (
-		repoA       = models.Repository{1, "foo", today}
-		repoB       = models.Repository{2, "bar", yesterday}
-		repoC       = models.Repository{3, "baz", twoDaysAgo}
-		testService = &repositoryService{
-			repositories: []models.Repository{
-				repoA,
-				repoB,
-				repoC,
-			},
-		}
-		testServer               = httptest.NewServer(testService)
-		repositoriesService, err = New(testServer.URL)
-	)
-
-	defer testServer.Close()
-
-	require.Nil(t, err)
 
 	for _, testCase := range []struct {
-		Name                 string
-		Request              RepositoryRequest
+		Name string
+		// available repos
+		Repositories []models.Repository
+		// inputs
+		Request RepositoryRequest
+		// expectations
 		ExpectedRepositories []models.Repository
 		ExpectedError        error
 	}{
 		{
 			Name:                 "fetch one repo",
+			Repositories:         []models.Repository{repoA, repoB},
 			Request:              NewRepositoryRequest(),
 			ExpectedRepositories: []models.Repository{repoA},
 		},
 		{
 			Name:                 "fetch two repos",
+			Repositories:         []models.Repository{repoB, repoC},
 			Request:              NewRepositoryRequest(WithCount(2)),
 			ExpectedRepositories: []models.Repository{repoB, repoC},
 		},
 	} {
 		t.Run(testCase.Name, func(t *testing.T) {
+			var (
+				testService = &repositoryService{
+					repositories: testCase.Repositories,
+				}
+				testServer               = httptest.NewServer(testService)
+				repositoriesService, err = New(testServer.URL)
+			)
+
+			defer testServer.Close()
+
+			require.Nil(t, err)
+
 			resp, err := repositoriesService.Repositories(context.TODO(), testCase.Request)
 			if testCase.ExpectedError != nil {
 				require.Equal(t, testCase.ExpectedError, err)
 				return
 			}
+
+			// sort resp as this is non-deterministic due to concurrency
+			sort.Slice(resp, func(i, j int) bool {
+				return resp[i].ID < resp[j].ID
+			})
 
 			require.Nil(t, testCase.ExpectedError)
 
