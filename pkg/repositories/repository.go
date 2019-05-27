@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"../models"
 )
@@ -27,25 +28,56 @@ func New(repositoryServiceAddress string) (*Service, error) {
 }
 
 func (s Service) Repositories(_ context.Context, req RepositoryRequest) (repos []models.Repository, err error) {
+	type task struct {
+		Result models.Repository
+		Err    error
+	}
+
+	var (
+		collected = make(chan task)
+		wg        sync.WaitGroup
+	)
+
 	for i := 0; i < req.Count; i++ {
-		target, err := s.target.Parse("/repository")
-		if err != nil {
-			return nil, err
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			target, err := s.target.Parse("/repository")
+			if err != nil {
+				collected <- task{Err: err}
+				return
+			}
+
+			resp, err := s.cli.Get(target.String())
+			if err != nil {
+				collected <- task{Err: err}
+				return
+			}
+
+			defer resp.Body.Close()
+
+			var repo repo
+			if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
+				collected <- task{Err: err}
+				return
+			}
+
+			collected <- task{Result: repo.Repository}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(collected)
+	}()
+
+	for task := range collected {
+		if task.Err != nil {
+			return nil, task.Err
 		}
 
-		resp, err := s.cli.Get(target.String())
-		if err != nil {
-			return nil, err
-		}
-
-		defer resp.Body.Close()
-
-		var repo repo
-		if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
-			return nil, err
-		}
-
-		repos = append(repos, repo.Repository)
+		repos = append(repos, task.Result)
 	}
 
 	return
