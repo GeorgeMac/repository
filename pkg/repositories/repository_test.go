@@ -46,6 +46,12 @@ func TestRepositories(t *testing.T) {
 			Request:              NewRepositoryRequest(WithCount(2)),
 			ExpectedRepositories: []models.Repository{repoB, repoC},
 		},
+		{
+			Name:                 "fetch three unique repos",
+			Repositories:         []models.Repository{repoA, repoB, repoB, repoB, repoC},
+			Request:              NewRepositoryRequest(WithCount(3), Unique),
+			ExpectedRepositories: []models.Repository{repoA, repoB, repoC},
+		},
 	} {
 		t.Run(testCase.Name, func(t *testing.T) {
 			var (
