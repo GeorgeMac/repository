@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	today      = time.Now()
-	yesterday  = today.Add(-time.Hour * 24)
-	twoDaysAgo = yesterday.Add(-time.Hour * 24)
+	today      = time.Now().UTC()
+	yesterday  = today.Add(-time.Hour * 24).UTC()
+	twoDaysAgo = yesterday.Add(-time.Hour * 24).UTC()
 )
 
 func TestRepositories(t *testing.T) {
