@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"../models"
+	"github.com/georgemac/repositories/pkg/models"
 )
 
 type repositoryService struct {

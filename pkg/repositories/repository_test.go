@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"../models"
-	"github.com/fsouza/testify/assert"
+	"github.com/georgemac/repositories/pkg/models"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +29,7 @@ func TestRepositories(t *testing.T) {
 		// available repos
 		Repositories []models.Repository
 		// inputs
-		Request models.RepositoryRequest
+		Request models.RepositoriesRequest
 		// expectations
 		ExpectedRepositories []models.Repository
 		ExpectedError        error
@@ -37,19 +37,19 @@ func TestRepositories(t *testing.T) {
 		{
 			Name:                 "fetch one repo",
 			Repositories:         []models.Repository{repoA, repoB},
-			Request:              models.NewRepositoryRequest(),
+			Request:              models.NewRepositoriesRequest(),
 			ExpectedRepositories: []models.Repository{repoA},
 		},
 		{
 			Name:                 "fetch two repos",
 			Repositories:         []models.Repository{repoB, repoC},
-			Request:              models.NewRepositoryRequest(models.WithCount(2)),
+			Request:              models.NewRepositoriesRequest(models.WithCount(2)),
 			ExpectedRepositories: []models.Repository{repoB, repoC},
 		},
 		{
 			Name:                 "fetch three unique repos",
 			Repositories:         []models.Repository{repoA, repoB, repoB, repoB, repoC},
-			Request:              models.NewRepositoryRequest(models.WithCount(3), models.Unique),
+			Request:              models.NewRepositoriesRequest(models.WithCount(3), models.Unique),
 			ExpectedRepositories: []models.Repository{repoA, repoB, repoC},
 		},
 	} {
