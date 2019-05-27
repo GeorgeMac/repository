@@ -48,6 +48,11 @@ func TestRepositories(t *testing.T) {
 			Request:              NewRepositoryRequest(),
 			ExpectedRepositories: []models.Repository{repoA},
 		},
+		{
+			Name:                 "fetch two repos",
+			Request:              NewRepositoryRequest(WithCount(2)),
+			ExpectedRepositories: []models.Repository{repoB, repoC},
+		},
 	} {
 		t.Run(testCase.Name, func(t *testing.T) {
 			resp, err := repositoriesService.Repositories(context.TODO(), testCase.Request)
